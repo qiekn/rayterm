@@ -238,7 +238,7 @@ void Terminal::AddOutput(const std::string& text) {
 
   // Auto-scroll to bottom when new content is added
   float total_height = (output_history_.size() + 1) * 20.0f;  // +1 for current input line
-  float visible_height = GetScreenHeight() * 0.9f;            // Content area height
+  float visible_height = GetScreenHeight() * 0.7f;            // Content area height
   if (total_height > visible_height) {
     scroll_offset_ = total_height - visible_height + 20.0f;  // Extra padding to show current line
   }
