@@ -1,6 +1,7 @@
 #include "managers/font-manager.h"
 #include "raylib.h"
 #include "terminal.h"
+#include "utilities/color.h"
 
 int main() {
   SetTraceLogLevel(LOG_WARNING);
@@ -28,7 +29,7 @@ int main() {
     BeginDrawing();
 
     // 动态背景
-    Color background_color = {20, 30, 50, 255};
+    Color background_color = Hexc("#30363d");
     ClearBackground(background_color);
 
     // 绘制标题
