@@ -7,6 +7,7 @@
 namespace FontSize {
 constexpr float kTitle = 32.0f;
 constexpr float kSubtitle = 24.0f;
+constexpr float kText = 16.0f;
 };  // namespace FontSize
 
 class FontManager {

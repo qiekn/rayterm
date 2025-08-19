@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <sstream>
 #include "managers/font-manager.h"
+#include "utilities/color.h"
 
 Terminal::Terminal() : current_directory_("/home/player") {
   InitializeFilesystem();
@@ -16,68 +17,37 @@ Terminal::~Terminal() {}
 
 void Terminal::Update(float dt) {
   HandleInput();
-
-  // Update cursor blink
-  cursor_timer_ += dt;
-  if (cursor_timer_ >= cursor_blink_time_) {
-    cursor_visible_ = !cursor_visible_;
-    cursor_timer_ = 0.0f;
-  }
-
-  // Handle backspace repeat
-  if (backspace_held_) {
-    backspace_timer_ += dt;
-    if (backspace_timer_ >= backspace_initial_delay_) {
-      // After initial delay, repeat at faster rate
-      if (fmod(backspace_timer_ - backspace_initial_delay_, backspace_repeat_rate_) < dt &&
-          !current_input_.empty()) {
-        current_input_.pop_back();
-      }
-    }
-  }
-
-  // Toggle Animation
-  float target_width = is_open_ ? GetScreenWidth() * 0.7f : 0.0f;  // 70% of screen width
-  if (current_panel_width_ != target_width) {
-    float diff = target_width - current_panel_width_;
-    float step = animation_speed_ * dt;
-    if (abs(diff) <= step) {
-      current_panel_width_ = target_width;
-    } else {
-      current_panel_width_ += diff > 0 ? step : -step;
-    }
-  }
+  HandleBackspace(dt);
+  HandleCursorBlink(dt);
+  UpdateAnimation(dt);
 }
 
+// clang-format off
 void Terminal::Draw() {
   if (current_panel_width_ <= 0.0f) return;
 
   float panel_x = GetScreenWidth() - current_panel_width_;
   float panel_y = 0.0f;
   float panel_height = GetScreenHeight();
-  float line_height = 20.0f;
+  float line_height = font_size_ + 4.0f;  // Add some padding for line height
 
   // Background
-  DrawRectangle(panel_x, panel_y, current_panel_width_, panel_height, (Color){20, 20, 20, 240});
-  DrawRectangleLines(panel_x, panel_y, current_panel_width_, panel_height,
-                     (Color){100, 100, 100, 255});
+  DrawRectangle(panel_x, panel_y, current_panel_width_, panel_height, background_color_);
+  DrawRectangleLines(panel_x, panel_y, current_panel_width_, panel_height, (Color){100, 100, 100, 255});
 
   // Title
   const char* title_text = "Game Terminal";
-  Vector2 text_size =
-      MeasureTextEx(FontManager::Get().Italic(), title_text, FontSize::kTitle, 1.0f);
-  float title_x = panel_x + (current_panel_width_ - text_size.x) / 2.0f;
+  Vector2 title_text_size = MeasureTextEx(FontManager::Get().Italic(), title_text, FontSize::kTitle, 1.0f);
+  float title_x_offset = (max_panel_width_ - title_text_size.x) / 2.0f;
   float title_y = 10.0f;
 
-  if (current_panel_width_ <= text_size.x) {
-    title_x = panel_x + 5.0f;
+  if (panel_x >= title_x_offset) {
+    DrawTextEx(FontManager::Get().Italic(), title_text, {panel_x + title_x_offset, title_y},
+               FontSize::kTitle, 1.0f, WHITE);
   }
 
-  DrawTextEx(FontManager::Get().Italic(), title_text, {title_x, title_y}, FontSize::kTitle, 1.0f,
-             WHITE);
-
   // Terminal content area
-  float content_y = title_y + text_size.y + 20.0f;
+  float content_y = title_y + title_text_size.y + 20.0f;
   float content_height = panel_height - content_y - 40.0f;  // Leave space for current input
 
   // Draw output history
@@ -94,8 +64,8 @@ void Terminal::Draw() {
         text_color = RED;  // Error messages
       }
 
-      DrawTextEx(FontManager::Get().Mono(), line.c_str(), {panel_x + 10.0f, y_offset}, 16.0f, 1.0f,
-                 text_color);
+      DrawTextEx(FontManager::Get().Mono(), line.c_str(), {panel_x + 10.0f, y_offset},
+                 font_size_, 1.0f, text_color);
     }
     y_offset += line_height;
   }
@@ -105,17 +75,18 @@ void Terminal::Draw() {
     std::string prompt = current_directory_ + "$ ";
     std::string input_line = prompt + current_input_;
 
-    DrawTextEx(FontManager::Get().Mono(), input_line.c_str(), {panel_x + 10.0f, y_offset}, 16.0f,
-               1.0f, WHITE);
+    DrawTextEx(FontManager::Get().Mono(), input_line.c_str(), {panel_x + 10.0f, y_offset},
+               font_size_, 1.0f, WHITE);
 
     // Draw cursor
     if (cursor_visible_) {
       Vector2 prompt_size =
-          MeasureTextEx(FontManager::Get().Mono(), input_line.c_str(), 16.0f, 1.0f);
-      DrawRectangle(panel_x + 10.0f + prompt_size.x, y_offset, 2.0f, 16.0f, WHITE);
+          MeasureTextEx(FontManager::Get().Mono(), input_line.c_str(), font_size_, 1.0f);
+      DrawRectangle(panel_x + 10.0f + prompt_size.x, y_offset, 2.0f, font_size_, WHITE);
     }
   }
 }
+// clang-format on
 
 void Terminal::HandleInput() {
   if (!is_open_) {
@@ -161,9 +132,6 @@ void Terminal::HandleInput() {
     if (!current_input_.empty()) {
       command_history_.push_back(current_input_);
       ProcessCommand(current_input_);
-    } else {
-      // Add empty line for visual spacing
-      AddOutput("");
     }
 
     current_input_.clear();
@@ -200,6 +168,43 @@ void Terminal::HandleInput() {
   }
 }
 
+// Handle backspace repeat
+void Terminal::HandleBackspace(float dt) {
+  if (backspace_held_) {
+    backspace_timer_ += dt;
+    if (backspace_timer_ >= backspace_initial_delay_) {
+      // After initial delay, repeat at faster rate
+      if (fmod(backspace_timer_ - backspace_initial_delay_, backspace_repeat_rate_) < dt &&
+          !current_input_.empty()) {
+        current_input_.pop_back();
+      }
+    }
+  }
+}
+
+// Update cursor blink
+void Terminal::HandleCursorBlink(float dt) {
+  cursor_timer_ += dt;
+  if (cursor_timer_ >= cursor_blink_time_) {
+    cursor_visible_ = !cursor_visible_;
+    cursor_timer_ = 0.0f;
+  }
+}
+
+// Toggle Animation
+void Terminal::UpdateAnimation(float dt) {
+  float target_width = is_open_ ? max_panel_width_ : 0.0f;
+  if (current_panel_width_ != target_width) {
+    float diff = target_width - current_panel_width_;
+    float step = animation_speed_ * dt;
+    if (abs(diff) <= step) {
+      current_panel_width_ = target_width;
+    } else {
+      current_panel_width_ += diff > 0 ? step : -step;
+    }
+  }
+}
+
 void Terminal::ProcessCommand(const std::string& command) {
   auto args = SplitCommand(command);
   if (args.empty()) return;
@@ -221,6 +226,8 @@ void Terminal::ProcessCommand(const std::string& command) {
     CmdClear(args);
   } else if (cmd == "pwd") {
     CmdPwd(args);
+  } else if (cmd == "set") {
+    CmdSet(args);
   } else {
     AddOutput("bash: " + cmd + ": command not found");
   }
@@ -231,7 +238,7 @@ void Terminal::AddOutput(const std::string& text) {
 
   // Auto-scroll to bottom when new content is added
   float total_height = (output_history_.size() + 1) * 20.0f;  // +1 for current input line
-  float visible_height = GetScreenHeight() * 0.6f;            // Content area height
+  float visible_height = GetScreenHeight() * 0.9f;            // Content area height
   if (total_height > visible_height) {
     scroll_offset_ = total_height - visible_height + 20.0f;  // Extra padding to show current line
   }
@@ -339,6 +346,7 @@ void Terminal::CmdHelp(const std::vector<std::string>& args) {
   AddOutput("  echo <text>        - Display text");
   AddOutput("  pwd                - Print working directory");
   AddOutput("  clear              - Clear terminal");
+  AddOutput("  set <prop> <val>   - Change terminal settings");
   AddOutput("  help               - Show this help");
   AddOutput("");
   AddOutput("Use \\ key to toggle terminal");
@@ -350,6 +358,63 @@ void Terminal::CmdClear(const std::vector<std::string>& args) {
 }
 
 void Terminal::CmdPwd(const std::vector<std::string>& args) { AddOutput(current_directory_); }
+void Terminal::CmdSet(const std::vector<std::string>& args) {
+  // clang-format off
+  if (args.size() < 3) {
+    AddOutput("Usage: set <property> <value>");
+    AddOutput("Available properties:");
+    AddOutput("  fontsize <number>     - Set font size (8-32)");
+    AddOutput("  bgcolor <color>       - Set background color (hex color or black, dark, gray, blue, green)");
+    return;
+  }
+  // clang-format on
+
+  std::string property = args[1];
+  std::string value = args[2];
+
+  // Convert to lowercase for case-insensitive comparison
+  std::transform(property.begin(), property.end(), property.begin(), ::tolower);
+  std::transform(value.begin(), value.end(), value.begin(), ::tolower);
+  if (property == "fontsize") {
+    try {
+      float new_size = std::stof(value);
+      if (new_size >= 8.0f && new_size <= 32.0f) {
+        font_size_ = new_size;
+        AddOutput("Font size set to " + value);
+      } else {
+        AddOutput("Error: Font size must be between 8 and 32");
+      }
+    } catch (const std::exception& e) {
+      AddOutput("Error: Invalid font size value");
+    }
+  } else if (property == "bgcolor") {
+    Color color = background_color_;  // Default fallback
+
+    if (value == "dark")
+      color = (Color){20, 20, 20, 240};
+    else if (value == "black")
+      color = (Color){0, 0, 0, 240};
+    else if (value == "gray")
+      color = (Color){40, 40, 40, 240};
+    else if (value == "blue")
+      color = (Color){0, 0, 40, 240};
+    else if (value == "green")
+      color = (Color){0, 40, 0, 240};
+    else if (value[0] == '#') {
+      color = Hexc(value);
+    } else {
+      AddOutput("Error: Unknown background color '" + value + "'");
+      AddOutput("Available colors: dark, black, gray, darkblue, darkgreen");
+      return;
+    }
+
+    background_color_ = color;
+    AddOutput("Background color set to " + value);
+  } else {
+    AddOutput("Error: Unknown property '" + args[1] + "'");
+    AddOutput("Type 'set' without arguments to see available properties");
+  }
+}
 
 std::vector<std::string> Terminal::SplitCommand(const std::string& command) {
   std::vector<std::string> result;
