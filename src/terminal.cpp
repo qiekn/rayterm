@@ -32,7 +32,8 @@ void Terminal::Draw() {
 
   {  // Title
     const char* title_text = "Terminal";
-    Vector2 text_size = MeasureTextEx(FontManager::Get().Italic(), title_text, FontSize::kTitle, 2.0f);
+    Vector2 text_size =
+        MeasureTextEx(FontManager::Get().Italic(), title_text, FontSize::kTitle, 2.0f);
     float x = panel_x + (current_panel_width_ - text_size.x) / 2.0f;
     float y = 20.0f;
     if (current_panel_width_ <= text_size.x) {
