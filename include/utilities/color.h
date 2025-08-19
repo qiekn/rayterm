@@ -3,7 +3,7 @@
 #include <raylib.h>
 #include <string>
 
-Color Hexc(const std::string& color) {
+inline Color Hexc(const std::string& color) {
   if (color.size() != 7 || color[0] != '#') {
     TraceLog(LOG_ERROR, "Invalid color format: %s", color.c_str());
     return WHITE;
