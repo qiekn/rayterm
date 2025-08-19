@@ -2,11 +2,22 @@
 #include <raylib.h>
 #include <algorithm>
 #include <cstdlib>
+#include <functional>
 #include <sstream>
 #include "managers/font-manager.h"
 #include "utilities/color.h"
 
 Terminal::Terminal() : current_directory_("/home/player") {
+  command_table_ = {
+      {"ls", [this](auto& args) { CmdLs(args); }},
+      {"pwd", [this](auto& args) { CmdPwd(args); }},
+      {"cd", [this](auto& args) { CmdCd(args); }},
+      {"cat", [this](auto& args) { CmdCat(args); }},
+      {"clear", [this](auto& args) { CmdClear(args); }},
+      {"echo", [this](auto& args) { CmdEcho(args); }},
+      {"set", [this](auto& args) { CmdSet(args); }},
+      {"help", [this](auto& args) { CmdHelp(args); }},
+  };
   InitializeFilesystem();
   AddOutput("Welcome to Game Terminal v1.0");
   AddOutput("Type 'help' for available commands");
@@ -211,23 +222,9 @@ void Terminal::ProcessCommand(const std::string& command) {
 
   std::string cmd = args[0];
   std::transform(cmd.begin(), cmd.end(), cmd.begin(), ::tolower);
-
-  if (cmd == "ls") {
-    CmdLs(args);
-  } else if (cmd == "cd") {
-    CmdCd(args);
-  } else if (cmd == "cat") {
-    CmdCat(args);
-  } else if (cmd == "echo") {
-    CmdEcho(args);
-  } else if (cmd == "help") {
-    CmdHelp(args);
-  } else if (cmd == "clear") {
-    CmdClear(args);
-  } else if (cmd == "pwd") {
-    CmdPwd(args);
-  } else if (cmd == "set") {
-    CmdSet(args);
+  auto it = command_table_.find(cmd);
+  if (it != command_table_.end()) {
+    it->second(args);
   } else {
     AddOutput("bash: " + cmd + ": command not found");
   }

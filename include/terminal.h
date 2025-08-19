@@ -2,10 +2,13 @@
 #include <raylib.h>
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 class Terminal {
 public:
+  using CommandFunc = std::function<void(const std::vector<std::string>&)>;
+
   Terminal();
   virtual ~Terminal();
   void Update(float dt);
@@ -62,6 +65,7 @@ private:
   void CmdClear(const std::vector<std::string>& args);
   void CmdPwd(const std::vector<std::string>& args);
   void CmdSet(const std::vector<std::string>& args);
+  std::unordered_map<std::string, CommandFunc> command_table_;
 
   /* Utilities */
   std::vector<std::string> SplitCommand(const std::string& command);
