@@ -33,12 +33,11 @@ int main() {
     ClearBackground(background_color);
 
     // 绘制标题
-    DrawTextEx(FontManager::Get().Italic(), "A Great Game", (Vector2){50, 50}, static_cast<float>(FontSize::kTitle),
-               2.0f, WHITE);
-    DrawTextEx(FontManager::Get().Italic(), "Press [\\] to togge terminal", (Vector2){50, 100},
-               static_cast<float>(FontSize::kSubtitle), 2.0f, LIGHTGRAY);
-    DrawTextEx(FontManager::Get().Italic(), "Press [ESC] to exit", (Vector2){50, 130},
-               static_cast<float>(FontSize::kSubtitle), 2.0f, LIGHTGRAY);
+    DrawTextEx(FontManager::Get().Italic(), "A Great Game", (Vector2){50, 50}, FontSize::kTitle, 2.0f, WHITE);
+    DrawTextEx(FontManager::Get().Italic(), "Press [\\] to togge terminal", (Vector2){50, 100}, FontSize::kSubtitle,
+               2.0f, LIGHTGRAY);
+    DrawTextEx(FontManager::Get().Italic(), "Press [ESC] to exit", (Vector2){50, 130}, FontSize::kSubtitle, 2.0f,
+               LIGHTGRAY);
 
     terminal.Draw();
     EndDrawing();
